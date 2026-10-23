@@ -1472,6 +1472,7 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
     @SuppressLint("PrivateApi")
     public RecyclerListView(Context context, Theme.ResourcesProvider resourcesProvider) {
         super(context);
+        setDescendantFocusability(FOCUS_AFTER_DESCENDANTS);
         this.resourcesProvider = resourcesProvider;
         this.edgeEffectTrackerFactory = new EdgeEffectTrackerFactory();
 
@@ -1951,6 +1952,30 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
 
     public void setItemSelectorColorProvider(GenericProvider<Integer, Integer> getSelectorColor) {
         this.getSelectorColor = getSelectorColor;
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+            View focused = findFocus();
+            View child = focused;
+            while (child != null && child != this && child.getParent() != this) {
+                child = child.getParent() instanceof View ? (View) child.getParent() : null;
+            }
+            if (child != null && child != this) {
+                int position = getChildAdapterPosition(child);
+                if (position != NO_POSITION) {
+                    if (onItemClickListener != null) {
+                        onItemClickListener.onItemClick(child, position);
+                        return true;
+                    } else if (onItemClickListenerExtended != null) {
+                        onItemClickListenerExtended.onItemClick(child, position, child.getWidth() / 2f, child.getHeight() / 2f);
+                        return true;
+                    }
+                }
+            }
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     public void setOnItemClickListener(OnItemClickListener listener) {
