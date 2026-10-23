@@ -1,0 +1,51 @@
+name: Build TV
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "tv" ]
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "build-tools;35.0.0 ndk;27.0.12077973 platforms;android-35 cmake;3.22.1"
+
+      - name: Configure local.properties
+        run: |
+          echo "storeFile=${{ github.workspace }}/keystore.jks" >> local.properties
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> local.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> local.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> local.properties
+          echo "apiId=${{ secrets.API_ID }}" >> local.properties
+          echo "apiHash=${{ secrets.API_HASH }}" >> local.properties
+          if [ -n "${{ secrets.KEYSTORE_JKS }}" ]; then
+            echo "${{ secrets.KEYSTORE_JKS }}" | base64 --decode > keystore.jks
+          fi
+
+      - name: Gradle build
+        run: |
+          chmod +x gradlew
+          ./gradlew :TMessagesProj:assembleRelease --no-daemon -Dorg.gradle.jvmargs=-Xmx6g
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tgtv-apk
+          path: TMessagesProj/build/outputs/apk/**/*.apk
+          if-no-files-found: error
